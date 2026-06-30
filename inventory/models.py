@@ -1,6 +1,7 @@
 import uuid
 from django.conf import settings
 from django.db import models
+from pgvector.django import VectorField
 
 
 class Category(models.Model):
@@ -62,6 +63,7 @@ class BookListing(models.Model):
     is_available = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    embedding = VectorField(dimensions=256, null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

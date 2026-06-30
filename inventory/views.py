@@ -6,6 +6,16 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import Category, BookListing
 from .serializers import CategorySerializer, BookListingSerializer, BookListingDetailSerializer
 from users.permissions import IsAdmin, IsOwnerOrAdmin, IsSeller
+from .tasks import generate_book_embedding
+from pgvector.django import CosineDistance
+from rest_framework.decorators import action
+from rest_framework.response import Response
+import logging
+logger = logging.getLogger(__name__)
+
+
+
+
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -71,9 +81,46 @@ class BookListingViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(price__lte=max_price)
 
         return queryset
+    
+    @action(detail=True, methods=["get"], url_path="similar")
+    def similar(self, request, pk=None):
+        book = self.get_object()
+        if book.embedding is None:
+            return Response({"detail": "This listing has no embedding yet."}, status=400)
+
+        similar_books = (
+            BookListing.objects.filter(is_available=True)
+            .exclude(id=book.id)
+            .annotate(distance=CosineDistance("embedding", book.embedding))
+            .order_by("distance")[:5]
+        )
+
+        serializer = BookListingSerializer(similar_books, many=True)
+        results = []
+        for book_data, book_obj in zip(serializer.data, similar_books):
+            book_data["similarity_score"] = round((1 - book_obj.distance) * 100, 1)
+            results.append(book_data)
+
+        return Response(results)
 
     def perform_create(self, serializer):
-        serializer.save(seller=self.request.user)
+        book = serializer.save(seller=self.request.user)
+        generate_book_embedding.delay(book.id)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if request.user.is_authenticated:
+            try:
+                from recommendations.models import UserInteraction
+                UserInteraction.objects.create(
+                    user=request.user,
+                    book=instance,
+                    interaction_type="view",
+                )
+            except Exception:
+                logger.exception("Failed to log view interaction")
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
 
     @action(detail=False, methods=["get"], url_path="my_listings")
     def my_listings(self, request):

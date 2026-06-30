@@ -90,8 +90,12 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': config('DB_NAME'),
+        'USER': config('DB_USER'),
+        'PASSWORD': config('DB_PASSWORD'),
+        'HOST': config('DB_HOST'),
+        'PORT': config('DB_PORT'),
     }
 }
 
@@ -153,6 +157,7 @@ REST_FRAMEWORK = {
     ),
 }
 
+# JWT Options
 SIMPLE_JWT = {
     'ACCESS_TOKEN_LIFETIME': timedelta(minutes=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
@@ -169,3 +174,39 @@ CLOUDINARY_STORAGE = {
 DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
 
 AUTH_USER_MODEL = 'users.User'
+
+# Celery Configuration
+CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = config("CELERY_RESULT_BACKEND", default="redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = 'Asia/Kuala_Lumpur'
+
+# Celery Beat Schedule
+CELERY_BEAT_SCHEDULE = {
+    'check-overdue-rentals-daily': {
+        'task': 'rentals.tasks.check_overdue_rentals',
+        'schedule': timedelta(days=1),  # Run daily
+    },
+}
+
+# You might need to add `BROKER_URL` and `CELERY_RESULT_BACKEND` to your .env
+
+# Gemini Chatbot
+
+GEMINI_API_KEY = config("GEMINI_API_KEY")
+GEMINI_MODEL = "gemini-2.5-flash"
+
+from celery.schedules import crontab
+
+from celery.schedules import crontab
+
+CELERY_BROKER_URL = config('REDIS_URL')
+CELERY_RESULT_BACKEND = config('REDIS_URL')
+CELERY_BEAT_SCHEDULE = {
+    'check-overdue-rentals-daily': {
+        'task': 'rentals.tasks.check_overdue_rentals',
+        'schedule': crontab(hour = 0, minute = 0),  # TEMPORARY — every minute, for testing
+    },
+}

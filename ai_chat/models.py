@@ -1,7 +1,7 @@
 import uuid
 from django.conf import settings
 from django.db import models
-
+from django.core.serializers.json import DjangoJSONEncoder
 
 class ChatSession(models.Model):
     """Chat session model for AI conversations."""
@@ -12,7 +12,7 @@ class ChatSession(models.Model):
         on_delete=models.CASCADE
     )
     title = models.CharField(max_length=200, blank=True)
-    context_snapshot = models.JSONField(default=dict)
+    context_snapshot = models.JSONField(default=dict, encoder=DjangoJSONEncoder)
     created_at = models.DateTimeField(auto_now_add=True)
     last_active_at = models.DateTimeField(auto_now=True)
 

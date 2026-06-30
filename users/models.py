@@ -5,7 +5,7 @@ from django.utils import timezone
 
 
 class CustomUserManager(BaseUserManager):
-    """Custom user model manager."""
+    """Custom user model manager. Both username field and email are required."""
 
     def create_user(self, email, username, password=None, **extra_fields):
         if not email:

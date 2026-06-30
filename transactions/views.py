@@ -13,7 +13,8 @@ from .serializers import (
     OrderStatusSerializer,
     WalletLedgerSerializer,
 )
-from users.permissions import IsBuyer, IsOwnerOrAdmin
+from users.permissions import IsBuyer
+from .permissions import IsOrderParticipantOrAdmin
 from inventory.models import BookListing
 
 User = get_user_model()
@@ -65,11 +66,11 @@ class OrderViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             self.permission_classes = [IsAuthenticated, IsBuyer]
         elif self.action in ["retrieve", "update_status"]:
-            self.permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+            self.permission_classes = [IsAuthenticated, IsOrderParticipantOrAdmin]
         elif self.action == "list":
             self.permission_classes = [IsAuthenticated]
         else:
-            self.permission_classes = [IsAuthenticated, IsOwnerOrAdmin]  # Default for other actions
+            self.permission_classes = [IsAuthenticated, IsOrderParticipantOrAdmin]  # Default for other actions
         return super().get_permissions()
 
     def get_queryset(self):
@@ -135,6 +136,7 @@ class OrderViewSet(viewsets.ModelViewSet):
         return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=True, methods=["patch"], url_path="update_status")
+    @transaction.atomic
     def update_status(self, request, pk=None):
         order = get_object_or_404(Order.objects.select_for_update(), pk=pk) # Lock the order
         self.check_object_permissions(request, order)
@@ -144,39 +146,41 @@ class OrderViewSet(viewsets.ModelViewSet):
         })
         serializer.is_valid(raise_exception=True)
 
-        with transaction.atomic():
-            updated_order = serializer.save()
-            # Handle wallet movements based on status changes (simplified, full logic would be more complex)
-            if updated_order.status == 'cancelled' and order.status != 'cancelled':
-                # Refund buyer from escrow if cancelled from pending
-                if order.status == 'pending':
-                    buyer_account = User.objects.select_for_update().get(pk=updated_order.buyer.pk)
-                    buyer_account.wallet_balance += updated_order.total_price
-                    buyer_account.save()
-                    WalletLedger.objects.create(
-                        user=buyer_account,
-                        amount=updated_order.total_price,
-                        transaction_type="refund",
-                        reference_id=updated_order.id,
-                        balance_after=buyer_account.wallet_balance,
-                        note=f"Refund for cancelled order {updated_order.id}",
-                    )
-                    # Make book available again
-                    book = updated_order.book
-                    book.is_available = True
-                    book.save()
-            elif updated_order.status == 'completed' and order.status != 'completed':
-                # Release funds from escrow to seller
-                seller_account = User.objects.select_for_update().get(pk=updated_order.seller.pk)
-                seller_account.wallet_balance += updated_order.total_price
-                seller_account.save()
+        previous_status = order.status  # capture BEFORE save() mutates this same object
+
+        
+        updated_order = serializer.save()
+        # Handle wallet movements based on status changes (simplified, full logic would be more complex)
+        if updated_order.status == 'cancelled' and previous_status != 'cancelled':
+            # Refund buyer from escrow if cancelled from pending
+            if previous_status == 'pending':
+                buyer_account = User.objects.select_for_update().get(pk=updated_order.buyer.pk)
+                buyer_account.wallet_balance += updated_order.total_price
+                buyer_account.save()
                 WalletLedger.objects.create(
-                    user=seller_account,
+                    user=buyer_account,
                     amount=updated_order.total_price,
-                    transaction_type="escrow_release",
+                    transaction_type="refund",
                     reference_id=updated_order.id,
-                    balance_after=seller_account.wallet_balance,
-                    note=f"Escrow release for completed order {updated_order.id}",
+                    balance_after=buyer_account.wallet_balance,
+                    note=f"Refund for cancelled order {updated_order.id}",
                 )
+                # Make book available again
+                book = updated_order.book
+                book.is_available = True
+                book.save()
+        elif updated_order.status == 'completed' and previous_status != 'completed':
+            # Release funds from escrow to seller
+            seller_account = User.objects.select_for_update().get(pk=updated_order.seller.pk)
+            seller_account.wallet_balance += updated_order.total_price
+            seller_account.save()
+            WalletLedger.objects.create(
+                user=seller_account,
+                amount=updated_order.total_price,
+                transaction_type="escrow_release",
+                reference_id=updated_order.id,
+                balance_after=seller_account.wallet_balance,
+                note=f"Escrow release for completed order {updated_order.id}",
+            )
 
         return Response(OrderSerializer(updated_order).data, status=status.HTTP_200_OK)
