@@ -18,6 +18,8 @@ interface Category {
 
 
 
+
+
 interface BookListingDetail {
   id: string;
   seller: string;
@@ -31,6 +33,15 @@ interface BookListingDetail {
   price: string;
   cover_image_url: string | null;
   is_available: boolean;
+}
+
+interface SimilarBook {
+  id: string;
+  title: string;
+  author: string;
+  price: string;
+  cover_image_url: string | null;
+  similarity_score: number;
 }
 
 export default function BookDetailPage() {
