@@ -16,6 +16,8 @@ interface Category {
   parent: string | null;
 }
 
+
+
 interface BookListingDetail {
   id: string;
   seller: string;
@@ -48,7 +50,7 @@ export default function BookDetailPage() {
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
   const [ratingError, setRatingError] = useState<string | null>(null);
   const [ratingSuccess, setRatingSuccess] = useState(false);
-  const [similarBooks, setSimilarBooks] = useState<any[]>([]);
+  const [similarBooks, setSimilarBooks] = useState<SimilarBook[]>([]);
   
 
 
@@ -85,7 +87,7 @@ export default function BookDetailPage() {
           })
           .catch(() => {}); // no rating yet, leave stars empty
 
-        apiClient<any[]>(`inventory/listings/${id}/similar`)
+        apiClient<SimilarBook[]>(`inventory/listings/${id}/similar`)
           .then((similar) => setSimilarBooks(similar))
           .catch(() => setSimilarBooks([]));
 
