@@ -26,9 +26,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = []
+# Allowed hosts can be provided via env var DJANGO_ALLOWED_HOSTS as a comma-separated list
+_allowed_hosts = config('DJANGO_ALLOWED_HOSTS', default='')
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts.split(',') if h.strip()]
+# Always allow localhost for local development
+ALLOWED_HOSTS += ['localhost', '127.0.0.1']
+# Deduplicate while preserving order
+ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS))
+
+# Frontend URL for production (used in CORS_ALLOWED_ORIGINS)
+FRONTEND_URL = config('FRONTEND_URL', default=None)
 
 
 # Application definition
@@ -58,6 +67,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'corsheaders.middleware.CorsMiddleware', # Must be high up
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -141,6 +151,8 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/6.0/ref/settings/#default-auto-field
@@ -187,6 +199,8 @@ cloudinary.config(
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
 ]
+if FRONTEND_URL:
+    CORS_ALLOWED_ORIGINS.append(FRONTEND_URL)
 
 # Celery Configuration
 CELERY_BROKER_URL = config("CELERY_BROKER_URL", default="redis://localhost:6379/0")
@@ -203,12 +217,21 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": config("REDIS_URL", default="redis://localhost:6379/0"),
+# Allow switching between Redis cache (local/dev) and local-memory cache (production without Redis)
+USE_REDIS_CACHE = config('USE_REDIS_CACHE', default=False, cast=bool)
+if USE_REDIS_CACHE:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": config("REDIS_URL", default="redis://localhost:6379/0"),
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
 
 # Gemini Chatbot
 GEMINI_API_KEY = config("GEMINI_API_KEY")
