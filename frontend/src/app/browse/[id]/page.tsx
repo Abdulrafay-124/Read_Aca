@@ -88,7 +88,7 @@ export default function BookDetailPage() {
 
     apiClient<BookListingDetail>(`inventory/listings/${id}`)
       .then((data) => {
-        setBook(data);
+        setBook(data ?? null);
         setLoading(false);
         apiClient<{ rating: number | null }>(`recommendations/ratings/mine/${id}`)
           .then((data) => {

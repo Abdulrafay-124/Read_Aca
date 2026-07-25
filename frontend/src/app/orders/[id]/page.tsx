@@ -33,7 +33,7 @@ export default function OrderConfirmationPage() {
 
     apiClient<Order>(`transactions/orders/${id}`)
       .then((data) => {
-        setOrder(data);
+        setOrder(data ?? null);
         setLoading(false);
       })
       .catch((err) => {

@@ -28,8 +28,8 @@ export default function WalletPage() {
       "transactions/wallet/balance"
     )
       .then((data) => {
-        setBalance(data.wallet_balance);
-        setEntries(data.last_20_transactions);
+        setBalance(data?.wallet_balance ?? null);
+        setEntries(data?.last_20_transactions ?? []);
         setLoading(false);
       })
       .catch((err) => {

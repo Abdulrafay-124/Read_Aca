@@ -31,8 +31,8 @@ export default function DashboardPage() {
         try {
           setLoading(true);
           // Explicitly cast the return type to UserProfile
-          const data = await apiClient("auth/profile/", { method: "GET" }) as UserProfile;
-          setUserProfile(data);
+          const data = await apiClient("auth/profile/", { method: "GET" }) as UserProfile | undefined;
+          setUserProfile(data ?? null);
         } catch (err: any) {
           setError(err.message || "Failed to fetch profile");
           clearAuth(); // Clear auth if profile fetch fails (e.g., 401 after refresh failed)
