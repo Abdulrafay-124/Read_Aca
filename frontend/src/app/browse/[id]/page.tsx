@@ -66,6 +66,7 @@ export default function BookDetailPage() {
 
 
   const submitRating = async (value: number) => {
+    if (!book) return;
     setRatingSubmitting(true);
     setRatingError(null);
     try {
