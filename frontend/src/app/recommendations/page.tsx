@@ -34,7 +34,7 @@ export default function RecommendationsPage() {
 
     apiClient<any>("recommendations/my-recommendations")
       .then((data) => {
-        setRecs(extractList<Recommendation>(data));
+        setRecs(extractList<Recommendation>(data ?? []));
         setLoading(false);
       })
       .catch((err) => {

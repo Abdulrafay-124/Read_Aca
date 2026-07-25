@@ -36,7 +36,7 @@ export default function ChatPage() {
 
   const loadSessions = () => {
     apiClient<any>("chat/sessions")
-      .then((data) => setSessions(extractList<ChatSession>(data)))
+      .then((data) => setSessions(extractList<ChatSession>(data ?? [])))
       .catch((err) => setError(err.message || "Failed to load chat sessions"));
   };
 
@@ -56,8 +56,12 @@ export default function ChatPage() {
         method: "POST",
         body: { title: "New Chat" },
       });
-      setSessions((prev) => [session, ...prev]);
-      setActiveSession({ ...session, messages: session.messages || [] });
+        if (!session) {
+          setError("Failed to start new chat");
+          return;
+        }
+        setSessions((prev) => [session, ...prev]);
+        setActiveSession({ ...session, messages: session.messages || [] });
     } catch (err: any) {
       setError(err.message || "Failed to start new chat");
     }
@@ -67,7 +71,7 @@ export default function ChatPage() {
     setError(null);
     try {
       const session = await apiClient<ChatSession>(`chat/sessions/${sessionId}`);
-      setActiveSession(session);
+      setActiveSession(session ?? null);
     } catch (err: any) {
       setError(err.message || "Failed to load chat");
     }

@@ -33,7 +33,7 @@ export default function NewListingPage() {
   useEffect(() => {
     if (!accessToken) return;
     apiClient<any>("inventory/categories").then((data) => {
-      const list = Array.isArray(data) ? data : data.results || [];
+      const list = Array.isArray(data) ? data : (data?.results || []);
       setCategories(list);
       if (list.length > 0) {
         setForm((f) => ({ ...f, category: list[0].id }));

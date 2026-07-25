@@ -19,6 +19,10 @@ export default function LoginPage() {
 
     try {
       const data = await apiClient("auth/login/", { method: "POST", body: { email, password }, skipAuth: true });
+      if (!data) {
+        setError("Login failed");
+        return;
+      }
       setAuth(data.access, data.refresh, data.user); // Assuming backend returns access, refresh, and user object
       router.push("/dashboard");
     } catch (err: any) {

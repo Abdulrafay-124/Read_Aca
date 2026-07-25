@@ -92,7 +92,7 @@ export default function BookDetailPage() {
         setLoading(false);
         apiClient<{ rating: number | null }>(`recommendations/ratings/mine/${id}`)
           .then((data) => {
-            if (data.rating) {
+            if (data?.rating) {
               setRating(data.rating);
               setRatingSuccess(true);
             }
@@ -100,7 +100,7 @@ export default function BookDetailPage() {
           .catch(() => {}); // no rating yet, leave stars empty
 
         apiClient<SimilarBook[]>(`inventory/listings/${id}/similar`)
-          .then((similar) => setSimilarBooks(similar))
+          .then((similar) => setSimilarBooks(similar ?? []))
           .catch(() => setSimilarBooks([]));
 
         
@@ -189,17 +189,22 @@ export default function BookDetailPage() {
                             method: "POST",
                             body: { book: book.id, order_type: "sale" },
                             });
-                            router.push(`/orders/${order.id}`);
-                        } catch (err: any) {
-                            setBuyError(err.message || "Failed to create order");
-                            setBuying(false);
-                        }
-                        }}
-                        disabled={buying}
-                  className="bg-[#2F4538] hover:bg-[#26392c] text-[#EDE7D9] font-semibold py-2 px-6 rounded-sm"
-                >
-                {buying ? "Processing..." : "Buy"}
-                </button>
+                              if (order?.id) {
+                                router.push(`/orders/${order.id}`);
+                              } else {
+                                setBuyError("Failed to create order");
+                                setBuying(false);
+                              }
+                          } catch (err: any) {
+                              setBuyError(err.message || "Failed to create order");
+                              setBuying(false);
+                          }
+                          }}
+                          disabled={buying}
+                    className="bg-[#2F4538] hover:bg-[#26392c] text-[#EDE7D9] font-semibold py-2 px-6 rounded-sm"
+                  >
+                  {buying ? "Processing..." : "Buy"}
+                  </button>
               )}
               {canRent && (
                 <button
@@ -211,7 +216,12 @@ export default function BookDetailPage() {
                         method: "POST",
                         body: { book: book.id, order_type: "rental" },
                       });
-                      router.push(`/orders/${order.id}`);
+                      if (order?.id) {
+                        router.push(`/orders/${order.id}`);
+                      } else {
+                        setRentError("Failed to create rental order");
+                        setRenting(false);
+                      }
                     } catch (err: any) {
                       setRentError(err.message || "Failed to create rental order");
                       setRenting(false);
