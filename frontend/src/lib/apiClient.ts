@@ -1,7 +1,8 @@
 import { useAuthStore } from "@/store/authStore";
 import { redirect } from "next/navigation";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api"; // Default to Django\`s default API URL
+const RAW_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const API_BASE_URL = `${RAW_BASE_URL.replace(/\/$/, "")}/api`;
 
 interface CustomRequestOptions {
   method?: string;
