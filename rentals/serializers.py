@@ -2,6 +2,10 @@ from rest_framework import serializers
 from .models import RentalRecord
 from transactions.models import Order
 from django.utils import timezone
+from decimal import Decimal
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class RentalRecordSerializer(serializers.ModelSerializer):
@@ -53,8 +57,8 @@ class RentalRecordSerializer(serializers.ModelSerializer):
         # Set book and renter from the order
         data["book"] = order.book
         data["renter"] = order.buyer
+        data["daily_penalty_rate"] = order.book.price * Decimal("0.10")
         
-
         return data
 
     def create(self, validated_data):

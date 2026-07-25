@@ -78,9 +78,11 @@ class OrderStatusSerializer(serializers.ModelSerializer):
             instance.save()
             return instance
 
-        # Buyer can move: pending → cancelled
+        # Buyer can move: pending → cancelled, shipped → completed
         if user == instance.buyer:
             if current_status == 'pending' and new_status == 'cancelled':
+                instance.status = new_status
+            elif current_status == 'shipped' and new_status == 'completed':
                 instance.status = new_status
             else:
                 raise serializers.ValidationError(f"Buyer cannot change order from {current_status} to {new_status}.")

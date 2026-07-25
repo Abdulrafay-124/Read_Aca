@@ -5,13 +5,14 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from .models import Category, BookListing
 from .serializers import CategorySerializer, BookListingSerializer, BookListingDetailSerializer
-from users.permissions import IsAdmin, IsOwnerOrAdmin, IsSeller
+from users.permissions import IsAdmin, IsSeller
 from .tasks import generate_book_embedding
 from pgvector.django import CosineDistance
 from rest_framework.decorators import action
 from rest_framework.response import Response
 import logging
 logger = logging.getLogger(__name__)
+from .permissions import IsListingOwnerOrAdmin
 
 
 
@@ -31,7 +32,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
 
 class BookListingViewSet(viewsets.ModelViewSet):
-    queryset = BookListing.objects.select_related("seller", "category").filter(is_available=True).order_by("-created_at")
+    queryset = BookListing.objects.select_related("seller", "category").order_by("-created_at")
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -44,16 +45,19 @@ class BookListingViewSet(viewsets.ModelViewSet):
         elif self.action == "create":
             self.permission_classes = [IsAuthenticated, IsSeller]
         elif self.action in ["update", "partial_update", "destroy", "toggle_availability"]:
-            self.permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
+            self.permission_classes = [IsAuthenticated, IsListingOwnerOrAdmin]
         elif self.action == "my_listings":
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
 
     def get_queryset(self):
         queryset = self.queryset
-        # Filter for "my_listings" action
+
         if self.action == "my_listings":
             return BookListing.objects.select_related("seller", "category").filter(seller=self.request.user).order_by("-created_at")
+
+        if self.action == "list":
+            queryset = queryset.filter(is_available=True)
 
         # Search and filter for list action
         search_query = self.request.query_params.get("search", None)
@@ -105,7 +109,10 @@ class BookListingViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         book = serializer.save(seller=self.request.user)
-        generate_book_embedding.delay(book.id)
+        try:
+            generate_book_embedding.delay(book.id)
+        except Exception:
+            logger.exception("Failed to queue embedding generation — Redis may be down")
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()

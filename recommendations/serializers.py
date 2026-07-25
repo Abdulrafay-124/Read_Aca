@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from inventory.models import BookListing
-from .models import UserInteraction
+from .models import UserInteraction, BookRecommendation
 
 
 class RatingSerializer(serializers.Serializer):
@@ -22,3 +22,9 @@ class RatingSerializer(serializers.Serializer):
         return interaction
     
 
+class BookRecommendationSerializer(serializers.ModelSerializer):
+    recommended_book_title = serializers.CharField(source="recommended_book.title", read_only=True)
+
+    class Meta:
+        model = BookRecommendation
+        fields = ["id", "source_book", "recommended_book", "recommended_book_title", "score", "rec_type", "created_at"]
